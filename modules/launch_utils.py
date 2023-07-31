@@ -32,15 +32,11 @@ def check_python_version():
     is_windows = platform.system() == "Windows"
     major = sys.version_info.major
     minor = sys.version_info.minor
-    micro = sys.version_info.micro
-
-    if is_windows:
-        supported_minors = [10]
-    else:
-        supported_minors = [7, 8, 9, 10, 11]
-
-    if not (major == 3 and minor in supported_minors):
+    supported_minors = [10] if is_windows else [7, 8, 9, 10, 11]
+    if major != 3 or minor not in supported_minors:
         import modules.errors
+
+        micro = sys.version_info.micro
 
         modules.errors.print_error_explanation(f"""
 INCOMPATIBLE PYTHON VERSION
@@ -251,8 +247,8 @@ def requirements_met(requirements_file):
             if m is None:
                 return False
 
-            package = m.group(1).strip()
-            version_required = (m.group(2) or "").strip()
+            package = m[1].strip()
+            version_required = (m[2] or "").strip()
 
             if version_required == "":
                 continue

@@ -78,16 +78,15 @@ class UserMetadataEditor:
             preview_url = self.page.find_preview(filename)
             item["preview"] = preview_url
 
-        if preview_url:
-            preview = f'''
+        return (
+            f'''
             <div class='card standalone-card-preview'>
                 <img src="{html.escape(preview_url)}" class="preview">
             </div>
             '''
-        else:
-            preview = "<div class='card standalone-card-preview'></div>"
-
-        return preview
+            if preview_url
+            else "<div class='card standalone-card-preview'></div>"
+        )
 
     def get_metadata_table(self, name):
         item = self.page.items.get(name, {})
@@ -95,12 +94,15 @@ class UserMetadataEditor:
             filename = item["filename"]
 
             stats = os.stat(filename)
-            params = [
+            return [
                 ('File size: ', sysinfo.pretty_bytes(stats.st_size)),
-                ('Modified: ', datetime.datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')),
+                (
+                    'Modified: ',
+                    datetime.datetime.fromtimestamp(stats.st_mtime).strftime(
+                        '%Y-%m-%d %H:%M'
+                    ),
+                ),
             ]
-
-            return params
         except Exception as e:
             errors.display(e, f"reading info for {name}")
             return []
@@ -123,7 +125,7 @@ class UserMetadataEditor:
         filename = item.get("filename", None)
         basename, ext = os.path.splitext(filename)
 
-        with open(basename + '.json', "w", encoding="utf8") as file:
+        with open(f'{basename}.json', "w", encoding="utf8") as file:
             json.dump(metadata, file)
 
     def save_user_metadata(self, name, desc, notes):
@@ -167,10 +169,10 @@ class UserMetadataEditor:
         item = self.page.items.get(name, {})
 
         index = int(index)
-        index = 0 if index < 0 else index
+        index = max(index, 0)
         index = len(gallery) - 1 if index >= len(gallery) else index
 
-        img_info = gallery[index if index >= 0 else 0]
+        img_info = gallery[max(index, 0)]
         image = generation_parameters_copypaste.image_from_url_text(img_info)
         geninfo, items = images.read_info_from_image(image)
 

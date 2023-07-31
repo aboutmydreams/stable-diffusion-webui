@@ -84,11 +84,11 @@ def restore_config_state(confirmed, config_state_name, restore_type):
 
     print(f"*** Restoring webui state from backup: {restore_type} ***")
 
-    if restore_type == "extensions" or restore_type == "both":
+    if restore_type in ["extensions", "both"]:
         shared.opts.restore_config_state_file = config_state["filepath"]
         shared.opts.save(shared.config_filename)
 
-    if restore_type == "webui" or restore_type == "both":
+    if restore_type in ["webui", "both"]:
         config_states.restore_webui_config(config_state)
 
     shared.state.request_restart()
@@ -127,7 +127,7 @@ def make_commit_link(commit_hash, remote, text=None):
     if remote.startswith("https://github.com/"):
         if remote.endswith(".git"):
             remote = remote[:-4]
-        href = remote + "/commit/" + commit_hash
+        href = f"{remote}/commit/{commit_hash}"
         return f'<a href="{href}" target="_blank">{text}</a>'
     else:
         return text
