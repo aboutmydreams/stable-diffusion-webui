@@ -105,9 +105,11 @@ class CFGDenoiser(torch.nn.Module):
 
     def combine_denoised_for_edit_model(self, x_out, cond_scale):
         out_cond, out_img_cond, out_uncond = x_out.chunk(3)
-        denoised = out_uncond + cond_scale * (out_cond - out_img_cond) + self.image_cfg_scale * (out_img_cond - out_uncond)
-
-        return denoised
+        return (
+            out_uncond
+            + cond_scale * (out_cond - out_img_cond)
+            + self.image_cfg_scale * (out_img_cond - out_uncond)
+        )
 
     def forward(self, x, sigma, uncond, cond, cond_scale, s_min_uncond, image_cond):
         if state.interrupted or state.skipped:
@@ -324,11 +326,12 @@ class KDiffusionSampler:
 
         k_diffusion.sampling.torch = TorchHijack(self.sampler_noises if self.sampler_noises is not None else [])
 
-        extra_params_kwargs = {}
-        for param_name in self.extra_params:
-            if hasattr(p, param_name) and param_name in inspect.signature(self.func).parameters:
-                extra_params_kwargs[param_name] = getattr(p, param_name)
-
+        extra_params_kwargs = {
+            param_name: getattr(p, param_name)
+            for param_name in self.extra_params
+            if hasattr(p, param_name)
+            and param_name in inspect.signature(self.func).parameters
+        }
         if 'eta' in inspect.signature(self.func).parameters:
             if self.eta != 1.0:
                 p.extra_generation_params["Eta"] = self.eta
@@ -358,10 +361,10 @@ class KDiffusionSampler:
             sigmas_func = k_diffusion_scheduler[opts.k_sched_type]
             p.extra_generation_params["Schedule type"] = opts.k_sched_type
 
-            if opts.sigma_min != m_sigma_min and opts.sigma_min != 0:
+            if opts.sigma_min not in [m_sigma_min, 0]:
                 sigmas_kwargs['sigma_min'] = opts.sigma_min
                 p.extra_generation_params["Schedule min sigma"] = opts.sigma_min
-            if opts.sigma_max != m_sigma_max and opts.sigma_max != 0:
+            if opts.sigma_max not in [m_sigma_max, 0]:
                 sigmas_kwargs['sigma_max'] = opts.sigma_max
                 p.extra_generation_params["Schedule max sigma"] = opts.sigma_max
 

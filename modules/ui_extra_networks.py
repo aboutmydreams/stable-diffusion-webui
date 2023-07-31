@@ -22,7 +22,13 @@ def register_page(page):
 
     extra_pages.append(page)
     allowed_dirs.clear()
-    allowed_dirs.update(set(sum([x.allowed_directories_for_previews() for x in extra_pages], [])))
+    allowed_dirs.update(
+        set(
+            sum(
+                (x.allowed_directories_for_previews() for x in extra_pages), []
+            )
+        )
+    )
 
 
 def fetch_file(filename: str = ""):
@@ -31,7 +37,10 @@ def fetch_file(filename: str = ""):
     if not os.path.isfile(filename):
         raise HTTPException(status_code=404, detail="File not found")
 
-    if not any(Path(x).absolute() in Path(filename).absolute().parents for x in allowed_dirs):
+    if all(
+        Path(x).absolute() not in Path(filename).absolute().parents
+        for x in allowed_dirs
+    ):
         raise ValueError(f"File cannot be fetched: {filename}. Must be in one of directories registered by extra pages.")
 
     ext = os.path.splitext(filename)[1].lower()
@@ -102,7 +111,7 @@ class ExtraNetworksPage:
     def read_user_metadata(self, item):
         filename = item.get("filename", None)
         basename, ext = os.path.splitext(filename)
-        metadata_filename = basename + '.json'
+        metadata_filename = f'{basename}.json'
 
         metadata = {}
         try:
@@ -153,7 +162,7 @@ class ExtraNetworksPage:
 
                     is_empty = len(os.listdir(x)) == 0
                     if not is_empty and not subdir.endswith("/"):
-                        subdir = subdir + "/"
+                        subdir = f"{subdir}/"
 
                     if ("/." in subdir or subdir.startswith(".")) and not shared.opts.extra_networks_show_hidden_directories:
                         continue
@@ -171,8 +180,7 @@ class ExtraNetworksPage:
 
         self.items = {x["name"]: x for x in self.list_items()}
         for item in self.items.values():
-            metadata = item.get("metadata")
-            if metadata:
+            if metadata := item.get("metadata"):
                 self.metadata[item["name"]] = metadata
 
             if "user_metadata" not in item:
@@ -186,7 +194,7 @@ class ExtraNetworksPage:
 
         self_name_id = self.name.replace(" ", "_")
 
-        res = f"""
+        return f"""
 <div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs extra-network-subdirs-cards'>
 {subdirs_html}
 </div>
@@ -194,8 +202,6 @@ class ExtraNetworksPage:
 {items_html}
 </div>
 """
-
-        return res
 
     def create_item(self, name, index=None):
         raise NotImplementedError()
@@ -221,8 +227,7 @@ class ExtraNetworksPage:
         width = f"width: {shared.opts.extra_networks_card_width}px;" if shared.opts.extra_networks_card_width else ''
         background_image = f'<img src="{html.escape(preview)}" class="preview" loading="lazy">' if preview else ''
         metadata_button = ""
-        metadata = item.get("metadata")
-        if metadata:
+        if metadata := item.get("metadata"):
             metadata_button = f"<div class='metadata-button card-button' title='Show internal metadata' onclick='extraNetworksRequestMetadata(event, {quote_js(self.name)}, {quote_js(item['name'])})'></div>"
 
         edit_button = f"<div class='edit-button card-button' title='Edit metadata' onclick='extraNetworksEditUserMetadata(event, {quote_js(tabname)}, {quote_js(self.id_page)}, {quote_js(item['name'])})'></div>"
@@ -287,13 +292,22 @@ class ExtraNetworksPage:
         if shared.opts.samples_format not in preview_extensions:
             preview_extensions.append(shared.opts.samples_format)
 
-        potential_files = sum([[path + "." + ext, path + ".preview." + ext] for ext in preview_extensions], [])
+        potential_files = sum(
+            (
+                [f"{path}.{ext}", f"{path}.preview.{ext}"]
+                for ext in preview_extensions
+            ),
+            [],
+        )
 
-        for file in potential_files:
-            if os.path.isfile(file):
-                return self.link_preview(file)
-
-        return None
+        return next(
+            (
+                self.link_preview(file)
+                for file in potential_files
+                if os.path.isfile(file)
+            ),
+            None,
+        )
 
     def find_description(self, path):
         """
